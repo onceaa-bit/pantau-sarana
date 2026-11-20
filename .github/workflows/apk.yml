@@ -1,0 +1,55 @@
+name: Bangun APK Android
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Isi alamat server ke aplikasi
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: python3 scripts/set-api-url.py
+      - name: Pasang dependensi
+        run: npm install --no-audit --no-fund
+      - name: Buat proyek Android
+        run: npx cap add android
+      - name: Pasang izin dan ikon
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 scripts/prepare-android.py
+          npx cap sync android
+      - name: Pakai kunci tanda tangan tetap
+        run: |
+          mkdir -p ~/.android
+          cp ci/debug.keystore ~/.android/debug.keystore
+      - name: Bangun APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Siapkan berkas
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk pantau-sarana.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pantau-sarana-apk
+          path: pantau-sarana.apk
+      - name: Terbitkan tautan unduh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-terbaru --cleanup-tag -y || true
+          gh release create apk-terbaru pantau-sarana.apk --title "APK terbaru" --notes "Unduh pantau-sarana.apk di bawah, lalu pasang di HP Android driver."
+          echo "Tautan: https://github.com/${{ github.repository }}/releases/download/apk-terbaru/pantau-sarana.apk" >> "$GITHUB_STEP_SUMMARY"
