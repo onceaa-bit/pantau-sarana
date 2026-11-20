@@ -1,0 +1,6 @@
+{
+  "appId": "id.amm.pantausarana",
+  "appName": "Pantau Sarana",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}
